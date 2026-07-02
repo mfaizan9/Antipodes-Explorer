@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Antipodes Explorer</title>
+
+  <!-- KL-UNL shared foundation (copied in unchanged) -->
+  <link rel="stylesheet" href="foundation/kl-unl.css" type="text/css" media="all">
+  <!-- Sim-specific styles layered on top of the foundation (foundation never edited) -->
+  <link rel="stylesheet" href="styles/styles.css" type="text/css" media="all">
+
+  <!-- MathJax: bundled locally (no CDN at runtime). tex-svg output keeps the
+       MathJax contextual menu ("Show Math As...") working on every symbol. -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['\\(', '\\)']] },
+      svg: { fontCache: 'global' },
+      options: { menuOptions: { settings: { assistiveMml: true } } }
+    };
+  </script>
+  <script defer src="assets/mathjax/tex-svg.js"></script>
+
+  <script defer src="foundation/kl-unl-masthead.js"></script>
+  <script defer src="foundation/kl-unl.js"></script>
+  <script defer src="assets/shoreData.js"></script>
+  <script defer src="simulation.js"></script>
+</head>
+<body>
+  <!-- aria-live status region: announces state changes (on commit) with units/context -->
+  <p id="sr-status" class="sr-only" aria-live="polite"></p>
+
+  <main class="app-shell">
+    <!-- Title + Reset / Help / About come from the shared masthead component.
+         It renders the <h1>, reads text from foundation/contents.json by sim-id,
+         and dispatches a "sim-reset" event we listen for. -->
+    <kl-unl-masthead sim-id="antipodesexplorer" json-url="foundation/contents.json"></kl-unl-masthead>
+
+    <div class="app-layout sim-layout">
+
+      <!-- ============ WORLD MAP PANEL (full width, top) ============ -->
+      <section class="panel sim-map-panel" aria-labelledby="map-heading">
+        <h2 id="map-heading" class="panel__heading">World Map</h2>
+        <div class="panel__canvas-wrap">
+          <div class="map-holder">
+            <!-- Equirectangular world map with two antipodal points.
+                 Canvas is the visual layer only; degree labels are real HTML
+                 (typeset by MathJax) so every symbol is spoken and zoomable.
+                 Focusing the map itself lets the arrow keys slide (pan) it; the
+                 red/blue points are moved through the focusable handles below. -->
+            <canvas id="map-canvas" width="716" height="366"
+                    role="application" tabindex="0"
+                    aria-label="World map. Use the arrow keys to slide the map."
+                    aria-describedby="map-desc map-pan-help"></canvas>
+            <!-- Longitude labels (top + bottom) and latitude labels (left + right)
+                 are injected here as positioned, MathJax-typeset spans. -->
+            <div id="map-labels" class="map-labels" aria-hidden="true"></div>
+            <!-- Focusable keyboard handles positioned over each point. -->
+            <div id="map-handles" class="point-handles">
+              <div class="point-handle point-handle--red" id="map-red"
+                   tabindex="0" role="application" aria-describedby="handle-help"></div>
+              <div class="point-handle point-handle--blue" id="map-blue"
+                   tabindex="0" role="application" aria-describedby="handle-help"></div>
+            </div>
+          </div>
+          <p id="map-desc" class="sr-only"></p>
+          <p id="map-pan-help" class="sr-only">
+            Use the Left and Right arrow keys to slide the map west or east; Page
+            Up and Page Down slide it by a larger step; Home re-centers it. Tab to
+            the red or blue point to move the points.
+          </p>
+          <p id="handle-help" class="sr-only">
+            Use the arrow keys to move this point by one degree: Left and Right
+            change longitude, Up and Down change latitude. Page Up and Page Down
+            change longitude by fifteen degrees; Home and End jump to the prime
+            meridian and the date line. The snap and restrict options apply. The
+            other point always stays on the opposite side of the Earth.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============ TRANSPARENT GLOBE VIEW ============ -->
+      <section class="panel sim-globe-panel" aria-labelledby="globe-heading">
+        <h2 id="globe-heading" class="panel__heading">Transparent Globe View</h2>
+        <div class="panel__canvas-wrap">
+          <div class="globe-holder">
+            <canvas id="globe-canvas" width="300" height="300"
+                    role="application" tabindex="0"
+                    aria-describedby="globe-desc globe-help"></canvas>
+            <!-- Focusable keyboard handles positioned over each point. -->
+            <div id="globe-handles" class="point-handles">
+              <div class="point-handle point-handle--red" id="globe-red"
+                   tabindex="0" role="application" aria-describedby="handle-help"></div>
+              <div class="point-handle point-handle--blue" id="globe-blue"
+                   tabindex="0" role="application" aria-describedby="handle-help"></div>
+            </div>
+          </div>
+          <p id="globe-desc" class="sr-only"></p>
+          <p id="globe-help" class="sr-only">
+            A transparent globe showing the same two antipodal points. Drag the
+            globe to rotate it, or use the arrow keys when the globe itself is
+            focused. Tab to the red or blue point to move it with the arrow keys.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============ POINT LOCATIONS ============ -->
+      <section class="panel sim-points-panel" aria-labelledby="points-heading">
+        <h2 id="points-heading" class="panel__heading">Point Locations</h2>
+        <div class="points-body">
+
+          <!-- RED point: draggable, and directly settable with the two sliders. -->
+          <div class="point-block">
+            <p class="point-title">
+              <span class="point-swatch point-swatch--red" aria-hidden="true"></span>
+              <span>Red point</span>
+            </p>
+
+            <div class="control-row point-row">
+              <label class="control-row__label" for="red-lat">latitude</label>
+              <span class="point-readout" id="red-lat-out" aria-hidden="true"></span>
+              <input class="point-slider" type="range" id="red-lat"
+                     min="-90" max="90" step="1" value="42"
+                     aria-label="Red point latitude"
+                     aria-valuetext="42 degrees north">
+            </div>
+
+            <div class="control-row point-row">
+              <label class="control-row__label" for="red-lon">longitude</label>
+              <span class="point-readout" id="red-lon-out" aria-hidden="true"></span>
+              <input class="point-slider" type="range" id="red-lon"
+                     min="-180" max="180" step="1" value="-5"
+                     aria-label="Red point longitude"
+                     aria-valuetext="5 degrees west">
+            </div>
+          </div>
+
+          <hr class="sim-rule">
+
+          <!-- BLUE point: the antipode of the red point (derived, read-only). -->
+          <div class="point-block">
+            <p class="point-title">
+              <span class="point-swatch point-swatch--blue" aria-hidden="true"></span>
+              <span>Blue point <span class="point-note">(antipode)</span></span>
+            </p>
+            <div class="control-row point-row point-row--static">
+              <span class="control-row__label" aria-hidden="true">latitude</span>
+              <span class="point-readout">
+                <span aria-hidden="true" id="blue-lat-out"></span>
+                <span class="sr-only" id="blue-lat-sr"></span>
+              </span>
+            </div>
+            <div class="control-row point-row point-row--static">
+              <span class="control-row__label" aria-hidden="true">longitude</span>
+              <span class="point-readout">
+                <span aria-hidden="true" id="blue-lon-out"></span>
+                <span class="sr-only" id="blue-lon-sr"></span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ OPTIONS ============ -->
+      <section class="panel sim-options-panel" aria-labelledby="options-heading">
+        <h2 id="options-heading" class="panel__heading">Options</h2>
+        <div class="options-body">
+
+          <fieldset class="control-fieldset" id="restrict-fieldset">
+            <div class="control-choice">
+              <input type="checkbox" id="restrict-check">
+              <label for="restrict-check">restrict dragging along&hellip;</label>
+            </div>
+
+            <div class="restrict-group" role="radiogroup" aria-label="Restrict dragging along">
+              <div class="control-choice restrict-option">
+                <input type="radio" name="restrict-mode" id="restrict-lon"
+                       value="longitude" checked disabled>
+                <label for="restrict-lon">longitude meridians</label>
+              </div>
+              <div class="control-choice restrict-option">
+                <input type="radio" name="restrict-mode" id="restrict-lat"
+                       value="latitude" disabled>
+                <label for="restrict-lat">latitude parallels</label>
+              </div>
+            </div>
+          </fieldset>
+
+          <div class="control-choice snap-row">
+            <input type="checkbox" id="snap-check">
+            <label for="snap-check" id="snap-label">snap to multiples of <span class="snap-deg">5&deg;</span></label>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</body>
+</html>

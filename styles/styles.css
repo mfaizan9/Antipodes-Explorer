@@ -1,0 +1,230 @@
+/* ==========================================================================
+   Antipodes Explorer — sim-specific styles.
+   Layered ON TOP of the KL-UNL foundation (foundation/kl-unl.css). The
+   foundation files are never edited; everything sim-specific lives here.
+   Sizing is in rem/em so it tracks the browser font size and reflows at 200%.
+   ========================================================================== */
+
+/* Body copy noticeably larger than the browser default (>= 1.125rem floor). */
+body {
+  font-size: 1.125rem;
+  line-height: 1.45;
+}
+
+/* Draggable-canvas cursors: a WHITE hand with a dark outline so it stays visible
+   on the white canvases (the plain system "grab" hand is invisible on white on
+   some platforms). Falls back to the native grab/grabbing keyword on browsers
+   that don't support SVG data-URI cursors (e.g. Safari, where the macOS system
+   hand is already outlined). */
+:root {
+  --sim-cursor-grab:
+    url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2728%27%20height%3D%2728%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20d%3D%27M8%2013V5.5a1.5%201.5%200%20013%200V12h1V4a1.5%201.5%200%20013%200v8h1V5.5a1.5%201.5%200%20013%200V13h1V8.5a1.5%201.5%200%20013%200V16c0%203.3-2.7%206-6%206h-2c-2%200-3.2-.8-4.4-2.3l-3.7-4.6a1.5%201.5%200%20012.2-2z%27%20fill%3D%27%23ffffff%27%20stroke%3D%27%23111111%27%20stroke-width%3D%271.4%27%20stroke-linejoin%3D%27round%27%20stroke-linecap%3D%27round%27%2F%3E%3C%2Fsvg%3E") 13 10, grab;
+  --sim-cursor-grabbing:
+    url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2728%27%20height%3D%2728%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20d%3D%27M8%2016v-3a1.5%201.5%200%20013%200v1h1v-2a1.5%201.5%200%20013%200v2h1v-1.5a1.5%201.5%200%20013%200V14h1v-.5a1.5%201.5%200%20013%200V16c0%203.3-2.7%206-6%206h-2c-2%200-3.2-.8-4.4-2.3l-3.2-4a1.5%201.5%200%20012.2-2z%27%20fill%3D%27%23ffffff%27%20stroke%3D%27%23111111%27%20stroke-width%3D%271.4%27%20stroke-linejoin%3D%27round%27%20stroke-linecap%3D%27round%27%2F%3E%3C%2Fsvg%3E") 14 12, grabbing;
+}
+
+/* --- Layout --------------------------------------------------------------- */
+/* Map spans the full width on top; the globe, point locations and options sit
+   in a three-column row underneath, mirroring the original screenshot.
+   Collapses to a single stacked column at the foundation's 56rem breakpoint. */
+.sim-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.sim-map-panel     { grid-column: 1 / -1; }
+.sim-globe-panel   { grid-column: 1; }
+.sim-points-panel  { grid-column: 2; }
+.sim-options-panel { grid-column: 3; }
+
+.panel { min-width: 0; padding-bottom: 1rem; }
+
+@media (max-width: 56rem) {
+  .sim-layout { grid-template-columns: 1fr; }
+  .sim-map-panel, .sim-globe-panel,
+  .sim-points-panel, .sim-options-panel { grid-column: 1; }
+}
+
+/* --- World map panel ------------------------------------------------------ */
+/* Room around the canvas for the degree labels that live outside the frame. */
+.sim-map-panel .panel__canvas-wrap {
+  padding: 1.9rem 3.1rem;
+}
+
+.map-holder {
+  position: relative;
+  width: 100%;
+  max-width: 46rem;
+  margin: 0 auto;
+}
+
+#map-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  touch-action: none;            /* pointer-drag moves points without scrolling */
+  cursor: var(--sim-cursor-grab);
+  background: #ffffff;
+}
+#map-canvas:active { cursor: var(--sim-cursor-grabbing); }
+
+/* Degree-label overlay shares the canvas box exactly, so percentage positions
+   track the canvas as it scales. Labels sit just outside the frame. */
+.map-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-size: 0.9rem;
+  color: var(--foreground-color, #1a1a1a);
+}
+.map-labels .lbl {
+  position: absolute;
+  white-space: nowrap;
+  line-height: 1;
+}
+.map-labels .lbl--top    { top: -1.55rem; transform: translateX(-50%); }
+.map-labels .lbl--bottom { bottom: -1.55rem; transform: translateX(-50%); }
+.map-labels .lbl--left   { left: -0.55rem; transform: translate(-100%, -50%); }
+.map-labels .lbl--right  { right: -0.55rem; transform: translate(100%, -50%); }
+.map-labels .lbl--left, .map-labels .lbl--right { text-align: center; }
+
+/* --- Keyboard point handles (overlay both canvases) ----------------------- */
+/* Transparent, focusable proxies for the canvas-drawn points so they can be
+   reached by Tab and moved with the arrow keys. pointer-events:none keeps mouse
+   dragging on the canvas working; keyboard focus still works. */
+.point-handles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.point-handle {
+  position: absolute;
+  width: 2rem;
+  height: 2rem;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;      /* mouse goes to the canvas; keyboard focus still works */
+  box-sizing: border-box;
+}
+.point-handle:focus-visible {
+  outline: 0.1875rem solid var(--outline-color, #005fcc);
+  outline-offset: 0.125rem;
+  background: rgba(0, 95, 204, 0.14);
+}
+/* also show a ring for browsers without :focus-visible support */
+.point-handle:focus {
+  outline: 0.1875rem solid var(--outline-color, #005fcc);
+  outline-offset: 0.125rem;
+}
+
+/* --- Globe panel ---------------------------------------------------------- */
+.globe-holder {
+  position: relative;        /* anchor the point handles */
+  width: 100%;
+  max-width: 20rem;
+  margin: 0 auto;
+}
+#globe-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  touch-action: none;
+  cursor: var(--sim-cursor-grab);
+}
+#globe-canvas:active { cursor: var(--sim-cursor-grabbing); }
+
+/* --- Point Locations panel ------------------------------------------------ */
+.points-body { padding: 0 1rem; }
+
+.point-block { margin: 0.25rem 0; }
+
+.point-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: bold;
+  margin: 0.35rem 0 0.55rem;
+}
+.point-note { font-weight: normal; font-size: 0.9em; color: #555; }
+
+.point-swatch {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 1px solid #000;
+  flex-shrink: 0;
+}
+.point-swatch--red  { background: #f06060; }
+.point-swatch--blue { background: #8080ff; }
+
+/* label column + value column line up down the panel; slider spans full width. */
+.point-row {
+  grid-template-columns: 6rem 1fr;
+  align-items: center;
+  gap: 0.2rem 0.6rem;
+  margin-bottom: 0.35rem;
+}
+.point-row .control-row__label { font-weight: normal; }
+
+.point-readout {
+  justify-self: end;
+  font-variant-numeric: tabular-nums;
+  font-weight: bold;
+  min-width: 5rem;
+  text-align: right;
+}
+.point-row--static { margin-bottom: 0.15rem; }
+.point-row--static .point-readout { font-weight: bold; }
+
+.point-slider {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 2.75rem;            /* >= 44px touch target */
+  cursor: pointer;
+}
+.point-slider:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* --- Options panel -------------------------------------------------------- */
+.options-body { padding: 0 1rem; }
+
+.control-fieldset { padding: 0; margin-bottom: 0.5rem; }
+
+.control-choice {
+  min-height: 2.75rem;           /* comfortable touch target */
+  gap: 0.5rem;
+}
+.control-choice label { font-size: 1.05rem; }
+
+/* Indent the two restrict modes under their master checkbox. */
+.restrict-group {
+  margin-left: 1.9rem;
+  border-left: 2px solid var(--border-color, #767676);
+  padding-left: 0.75rem;
+}
+.restrict-option { min-height: 2.4rem; }
+
+/* Disabled radios read as unavailable (not colour alone: they also can't focus). */
+.restrict-option input:disabled + label { color: #8a8a8a; }
+
+.snap-row { margin-top: 0.25rem; }
+
+.sim-rule {
+  border: 0;
+  border-top: 1px solid var(--border-color, #767676);
+  margin: 0.7rem 0;
+}
+
+/* Keep MathJax readouts from forcing a horizontal scrollbar on tiny screens. */
+mjx-container { max-width: 100%; }
+mjx-container svg { vertical-align: -0.15em; }
+
+/* --- Narrow / portrait tuning -------------------------------------------- */
+@media (max-width: 56rem) {
+  .points-body, .options-body { max-width: 32rem; }
+  .sim-map-panel .panel__canvas-wrap { padding: 1.9rem 2.6rem; }
+}
